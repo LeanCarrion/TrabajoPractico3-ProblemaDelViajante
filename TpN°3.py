@@ -1,5 +1,34 @@
 import os
+import pandas as pd
 
+
+ARCHIVO_DISTANCIAS = "TablaCapitales.xlsx"
+
+ciudades = [
+    "Buenos Aires",
+    "Catamarca",
+    "Córdoba",
+    "Corrientes",
+    "Resistencia",
+    "Formosa",
+    "San Salvador de Jujuy",
+    "Santa Rosa",
+    "La Rioja",
+    "Mendoza",
+    "Posadas",
+    "Neuquén",
+    "Paraná",
+    "Salta",
+    "San Juan",
+    "San Luis",
+    "Río Gallegos",
+    "Santa Fe",
+    "Santiago del Estero",
+    "Rawson",
+    "San Miguel de Tucumán",
+    "Ushuaia",
+    "Viedma"
+]
 
 def limpiar_pantalla():
     os.system("cls" if os.name == "nt" else "clear")
@@ -9,6 +38,22 @@ def pausa():
     input("\nPresione ENTER para continuar...")
 
 
+# Agregó funcion para leer el xlsx
+
+def cargar_distancias():
+    matriz = pd.read_excel(ARCHIVO_DISTANCIAS, index_col=0)
+
+    # Nos quedamos solamente con las filas correspondientes a ciudades
+    matriz = matriz.iloc[:24]
+
+    # Unificamos los nombres de las filas con los nombres de las columnas
+    matriz.index = matriz.columns
+
+    return matriz
+
+
+# Esto sirve para ver si lee las ciudades y distancias correctamente
+
 def mostrar_ciudades():
     limpiar_pantalla()
 
@@ -16,36 +61,49 @@ def mostrar_ciudades():
     print("       CAPITALES DE ARGENTINA")
     print("========================================")
 
-    ciudades = [
-        "Buenos Aires",
-        "Catamarca",
-        "Córdoba",
-        "Corrientes",
-        "Resistencia",
-        "Formosa",
-        "San Salvador de Jujuy",
-        "Santa Rosa",
-        "La Rioja",
-        "Mendoza",
-        "Posadas",
-        "Neuquén",
-        "Paraná",
-        "Salta",
-        "San Juan",
-        "San Luis",
-        "Río Gallegos",
-        "Santa Fe",
-        "Santiago del Estero",
-        "Rawson",
-        "San Miguel de Tucumán",
-        "Ushuaia",
-        "Viedma"
-    ]
+    matriz = cargar_distancias()
 
-    for i in range(len(ciudades)):
-        print(f"{i + 1}) {ciudades[i]}")
+
+    print("\nCiudades encontradas en el archivo:\n")
+
+    for i, ciudad in enumerate(matriz.columns):
+        print(f"{i + 1}) {ciudad}")
 
     pausa()
+
+def calcular_vecino_mas_cercano(ciudad_inicial, matriz):
+    ciudades = list(matriz.columns)
+
+    ciudad_actual = ciudad_inicial
+    visitadas = [ciudad_inicial]
+    distancia_total = 0
+
+    while len(visitadas) < len(ciudades):
+
+        menor_distancia = float("inf")
+        siguiente_ciudad = None
+
+        for ciudad in ciudades:
+
+            if ciudad not in visitadas:
+                distancia = matriz.loc[ciudad_actual, ciudad]
+
+                if distancia < menor_distancia:
+                    menor_distancia = distancia
+                    siguiente_ciudad = ciudad
+
+        visitadas.append(siguiente_ciudad)
+        distancia_total += menor_distancia
+        ciudad_actual = siguiente_ciudad
+
+    # Regreso a la ciudad inicial
+    distancia_regreso = matriz.loc[ciudad_actual, ciudad_inicial]
+    distancia_total += distancia_regreso
+    visitadas.append(ciudad_inicial)
+
+    return visitadas, distancia_total
+
+
 
 
 def vecino_mas_cercano():
@@ -55,33 +113,10 @@ def vecino_mas_cercano():
     print("       VECINO MÁS CERCANO")
     print("========================================")
 
-    print("\nSeleccione la ciudad de partida:\n")
+    matriz = cargar_distancias()
+    ciudades = list(matriz.columns)
 
-    ciudades = [
-        "Buenos Aires",
-        "Catamarca",
-        "Córdoba",
-        "Corrientes",
-        "Resistencia",
-        "Formosa",
-        "San Salvador de Jujuy",
-        "Santa Rosa",
-        "La Rioja",
-        "Mendoza",
-        "Posadas",
-        "Neuquén",
-        "Paraná",
-        "Salta",
-        "San Juan",
-        "San Luis",
-        "Río Gallegos",
-        "Santa Fe",
-        "Santiago del Estero",
-        "Rawson",
-        "San Miguel de Tucumán",
-        "Ushuaia",
-        "Viedma"
-    ]
+    print("\nSeleccione la ciudad de partida:\n")
 
     for i in range(len(ciudades)):
         print(f"{i + 1}) {ciudades[i]}")
@@ -89,16 +124,25 @@ def vecino_mas_cercano():
     opcion = input("\nOpción: ")
 
     if opcion.isdigit() and 1 <= int(opcion) <= len(ciudades):
-        ciudad = ciudades[int(opcion) - 1]
 
-        print(f"\nCiudad de partida: {ciudad}")
-        print("\nEl algoritmo de vecino más cercano se implementará aquí.")
+        ciudad_inicial = ciudades[int(opcion) - 1]
+
+        recorrido, distancia_total = calcular_vecino_mas_cercano(
+            ciudad_inicial,
+            matriz
+        )
+
+        print(f"\nCiudad de partida: {ciudad_inicial}")
+
+        print("\nRecorrido encontrado:\n")
+        print(" -> ".join(recorrido))
+
+        print(f"\nDistancia total: {distancia_total} km")
 
     else:
         print("\nOpción inválida.")
 
     pausa()
-
 
 def mejor_recorrido_heuristico():
     limpiar_pantalla()
