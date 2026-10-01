@@ -151,8 +151,33 @@ def mejor_recorrido_heuristico():
     print("     MEJOR RECORRIDO - HEURÍSTICA")
     print("========================================")
 
-    print("\nAquí se ejecutará el vecino más cercano")
-    print("comenzando desde las 23 ciudades.")
+    matriz = cargar_distancias()
+    ciudades = list(matriz.columns)
+
+    mejor_recorrido = None
+    mejor_distancia = float("inf")
+    mejor_ciudad_inicial = None
+
+    for ciudad in ciudades:
+
+        recorrido, distancia = calcular_vecino_mas_cercano(
+            ciudad,
+            matriz
+        )
+        
+        print(f"{ciudad}: {distancia} km")
+
+        if distancia < mejor_distancia:
+            mejor_distancia = distancia
+            mejor_recorrido = recorrido
+            mejor_ciudad_inicial = ciudad
+
+    print(f"\nMejor ciudad de partida: {mejor_ciudad_inicial}")
+
+    print("\nMejor recorrido encontrado:\n")
+    print(" -> ".join(mejor_recorrido))
+
+    print(f"\nDistancia total: {mejor_distancia} km")
 
     pausa()
 
