@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt 
 import numpy as np
 import random
+import geopandas as gpd
 
 N_POBLACION = 50        
 N_CICLOS = 200          
@@ -13,6 +14,8 @@ ELITES = 2
 
 
 ARCHIVO_DISTANCIAS = "TablaCapitales_completa.xlsx"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__)) #significa que se obtiene la ruta del directorio donde se encuentra el archivo Python actual.
+ARCHIVO_MAPA = os.path.join(BASE_DIR, "mapa", "ne_10m_admin_0_countries_arg.shp") #significa que se construye la ruta completa al archivo de forma independiente del sistema operativo.
 
 ciudades = [
     "CABA",
@@ -41,6 +44,35 @@ ciudades = [
     "Viedma",
 ]
 
+# (latitud, longitud) de cada capital
+COORDENADAS = {
+    "CABA": (-34.61, -58.38),
+    "Córdoba": (-31.42, -64.18),
+    "Corrientes": (-27.47, -58.83),
+    "Formosa": (-26.18, -58.17),
+    "La Plata": (-34.92, -57.95),
+    "La Rioja": (-29.41, -66.86),
+    "Mendoza": (-32.89, -68.83),
+    "Neuquén": (-38.95, -68.06),
+    "Paraná": (-31.73, -60.52),
+    "Posadas": (-27.37, -55.90),
+    "Rawson": (-43.30, -65.10),
+    "Resistencia": (-27.46, -58.99),
+    "Río Gallegos": (-51.62, -69.22),
+    "San Fernando del Valle de Catamarca": (-28.47, -65.78),
+    "San Miguel de Tucumán": (-26.82, -65.22),
+    "San Salvador de Jujuy": (-24.19, -65.30),
+    "Salta": (-24.78, -65.41),
+    "San Juan": (-31.54, -68.54),
+    "San Luis": (-33.30, -66.34),
+    "Santa Fe": (-31.63, -60.70),
+    "Santa Rosa": (-36.62, -64.29),
+    "Santiago del Estero": (-27.78, -64.26),
+    "Ushuaia": (-54.80, -68.30),
+    "Viedma": (-40.81, -62.99),
+}
+
+
 def limpiar_pantalla():
     os.system("cls" if os.name == "nt" else "clear")
 
@@ -54,10 +86,15 @@ def cargar_distancias():
     if list(matriz.columns) != ciudades or list(matriz.index) != ciudades:
         raise ValueError("Los nombres del Excel no coinciden con la lista 'ciudades'.")
 
-    
     # La diagonal viene vacía en la tabla original: distancia de una ciudad a sí misma = 0
-    np.fill_diagonal(matriz.values, 0)
+    valores = matriz.to_numpy(dtype=float, copy=True)
+    np.fill_diagonal(valores, 0)
+    matriz = pd.DataFrame(valores, index=ciudades, columns=ciudades)
 
+    problemas = validar_matriz(matriz)
+    if problemas:
+        raise ValueError("Matriz inválida:\n" + "\n".join(problemas))
+    
     return matriz
 
 def validar_matriz(matriz):
@@ -101,13 +138,7 @@ def mostrar_ciudades():
 
     pausa()
 
-    rutas = math.factorial(n - 1) // 2
-    print(f"Ciudades: {n}")
-    print(f"Rutas distintas (simétrico): {rutas:.3e}")
-    for v in velocidades:
-        segundos = rutas / v
-        anios = segundos / (365.25 * 24 * 3600)
-        print(f"  A {v:.0e} rutas/s: {anios:.3e} años")
+   
 
 def calcular_vecino_mas_cercano(ciudad_inicial, matriz):
     ciudades = list(matriz.columns)
@@ -140,6 +171,46 @@ def calcular_vecino_mas_cercano(ciudad_inicial, matriz):
     visitadas.append(ciudad_inicial)
 
     return visitadas, distancia_total
+
+
+def cargar_pais():
+    mundo = gpd.read_file(ARCHIVO_MAPA)
+    return mundo[mundo["ADMIN"] == "Argentina"]
+
+
+def dibujar_mapa(recorrido, titulo):
+    # recorrido: lista de nombres de ciudades; la última es igual a la primera
+    fig, ax = plt.subplots(figsize=(7, 10))
+
+    # Contorno real del país (punto de vista argentino)
+    cargar_pais().plot(ax=ax, color="#eef2e6", edgecolor="gray", linewidth=0.8, zorder=0)
+    ax.set_xlim(-74, -52)
+    ax.set_ylim(-56, -21)
+
+    # Todas las capitales
+    for nombre, (lat, lon) in COORDENADAS.items():
+        ax.scatter(lon, lat, color="steelblue", s=25, zorder=3)
+        ax.annotate(nombre, (lon, lat), fontsize=6, xytext=(3, 3),
+                    textcoords="offset points", zorder=4)
+
+    # Recorrido con flechas, en orden
+    for i in range(len(recorrido) - 1):
+        lat1, lon1 = COORDENADAS[recorrido[i]]
+        lat2, lon2 = COORDENADAS[recorrido[i + 1]]
+        ax.annotate("", xy=(lon2, lat2), xytext=(lon1, lat1),
+                    arrowprops=dict(arrowstyle="->", color="crimson", lw=1), zorder=2)
+
+    # Ciudad de partida resaltada
+    lat0, lon0 = COORDENADAS[recorrido[0]]
+    ax.scatter(lon0, lat0, color="green", s=90, marker="*", zorder=5, label="Partida / llegada")
+
+    ax.set_title(titulo)
+    ax.set_xlabel("Longitud")
+    ax.set_ylabel("Latitud")
+    ax.set_aspect(1 / np.cos(np.radians(40)))   # corrige la deformación de lon/lat
+    ax.legend(loc="lower right")
+    ax.grid(True, alpha=0.3)
+    plt.show()
 
 def vecino_mas_cercano():
     limpiar_pantalla()
@@ -174,6 +245,7 @@ def vecino_mas_cercano():
 
         print(f"\nDistancia total: {distancia_total} km")
 
+        dibujar_mapa(recorrido, f"Vecino más cercano desde {ciudad_inicial} ({distancia_total:.0f} km)")
     else:
         print("\nOpción inválida.")
 
