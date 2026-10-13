@@ -2,30 +2,31 @@ import os
 import pandas as pd
 
 
-ARCHIVO_DISTANCIAS = "TablaCapitales.xlsx"
+ARCHIVO_DISTANCIAS = "TablaCapitales_completa.xlsx"
 
 ciudades = [
-    "Buenos Aires",
-    "Catamarca",
+    "CABA",
     "Córdoba",
     "Corrientes",
-    "Resistencia",
     "Formosa",
-    "San Salvador de Jujuy",
-    "Santa Rosa",
+    "La Plata",
     "La Rioja",
     "Mendoza",
-    "Posadas",
     "Neuquén",
     "Paraná",
+    "Posadas",
+    "Rawson",
+    "Resistencia",
+    "Río Galleqos",
+    "San Fernando del Valle de Catamarca",
+    "San Miguel de Tucumán",
+    "San Salvador de Jujuy",
     "Salta",
     "San Juan",
     "San Luis",
-    "Río Gallegos",
     "Santa Fe",
+    "Santa Rosa",
     "Santiago del Estero",
-    "Rawson",
-    "San Miguel de Tucumán",
     "Ushuaia",
     "Viedma"
 ]
