@@ -11,7 +11,7 @@ PROB_CROSSOVER = 0.9
 PROB_MUTACION = 0.1
 TAMANO_TORNEO = 3
 ELITES = 2
-CORRIDAS_COMPARACION = 20
+CORRIDAS_COMPARACION = 10
 
 ARCHIVO_DISTANCIAS = "TablaCapitales_completa.xlsx"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__)) #significa que se obtiene la ruta del directorio donde se encuentra el archivo Python actual.
