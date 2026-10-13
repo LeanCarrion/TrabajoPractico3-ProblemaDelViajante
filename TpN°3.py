@@ -11,7 +11,7 @@ PROB_CROSSOVER = 0.9
 PROB_MUTACION = 0.1
 TAMANO_TORNEO = 3
 ELITES = 2
-
+CORRIDAS_COMPARACION = 20
 
 ARCHIVO_DISTANCIAS = "TablaCapitales_completa.xlsx"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__)) #significa que se obtiene la ruta del directorio donde se encuentra el archivo Python actual.
@@ -430,14 +430,51 @@ def comparar():
     limpiar_pantalla()
 
     print("========================================")
-    print("          COMPARACIÓN DE MÉTODOS")
+    print("        COMPARACIÓN DE MÉTODOS")
     print("========================================")
 
-    print("\nAquí se mostrarán los resultados de:")
-    print("- Vecino más cercano")
-    print("- Algoritmo genético")
+    matriz = cargar_distancias()
+    distancias = matriz.to_numpy()
+    n = len(ciudades)
+
+    # Heurística: vecino más cercano desde cada ciudad de partida
+    resultados_nn = {c: calcular_vecino_mas_cercano(c, matriz)[1] for c in ciudades}
+    mejor_ciudad = min(resultados_nn, key=resultados_nn.get)
+    mejor_nn = resultados_nn[mejor_ciudad]
+    peor_nn = max(resultados_nn.values())
+    promedio_nn = sum(resultados_nn.values()) / len(resultados_nn)
+
+    # Algoritmo genético: varias corridas, porque depende del azar
+    print(f"\nEjecutando el algoritmo genético {CORRIDAS_COMPARACION} veces...")
+    resultados_ga = []
+
+    for _ in range(CORRIDAS_COMPARACION):
+        cromosoma, distancia, historial = ejecutar_genetico(distancias, n)
+        resultados_ga.append(distancia)
+
+    mejor_ga = min(resultados_ga)
+    peor_ga = max(resultados_ga)
+    promedio_ga = sum(resultados_ga) / len(resultados_ga)
+
+    print("\n" + "-" * 55)
+    print(f"{'Método':<28}{'Mejor':>8}{'Promedio':>10}{'Peor':>8}")
+    print("-" * 55)
+    print(f"{'Vecino más cercano':<28}{mejor_nn:>8.0f}{promedio_nn:>10.0f}{peor_nn:>8.0f}")
+    print(f"{'Algoritmo genético':<28}{mejor_ga:>8.0f}{promedio_ga:>10.0f}{peor_ga:>8.0f}")
+    print("-" * 55)
+
+    print("(distancias en km)")
+    print(f"\nMejor partida de la heurística: {mejor_ciudad}")
+
+    diferencia = (mejor_ga - mejor_nn) / mejor_nn * 100
+
+    if diferencia > 0:
+        print(f"El mejor del genético es {diferencia:.1f}% más largo que el mejor de la heurística.")
+    else:
+        print(f"El mejor del genético es {abs(diferencia):.1f}% más corto que el mejor de la heurística.")
 
     pausa()
+
 
 def menu():
 
@@ -481,5 +518,7 @@ def menu():
         else:
             print("\nOpción inválida.")
             pausa()
+
+
 
 menu()
