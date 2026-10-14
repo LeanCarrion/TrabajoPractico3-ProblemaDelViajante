@@ -14,8 +14,12 @@ ELITES = 2
 CORRIDAS_COMPARACION = 10
 
 ARCHIVO_DISTANCIAS = "TablaCapitales_completa.xlsx"
-BASE_DIR = os.path.dirname(os.path.abspath(__file__)) #significa que se obtiene la ruta del directorio donde se encuentra el archivo Python actual.
-ARCHIVO_MAPA = os.path.join(BASE_DIR, "mapa", "ne_10m_admin_0_countries_arg.shp") #significa que se construye la ruta completa al archivo de forma independiente del sistema operativo.
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ARCHIVO_MAPA = os.path.join(BASE_DIR, "mapa", "ne_10m_admin_0_countries_arg.shp")
+ARCHIVO_PROVINCIAS = os.path.join(BASE_DIR, "mapa", "ne_10m_admin_1_states_provinces.shp")
+    
+CELESTE = "\033[96m"
+RESET = "\033[0m"
 
 ciudades = [
     "CABA",
@@ -80,39 +84,40 @@ def pausa():
     input("\nPresione ENTER para continuar...")
 
 def cargar_distancias():
-    matriz = pd.read_excel(ARCHIVO_DISTANCIAS, index_col=0)
-    matriz = matriz.iloc[:len(ciudades), :len(ciudades)]            
+
+    matriz = pd.read_excel(ARCHIVO_DISTANCIAS, index_col=0) #lee el archivo Excel y establece la primera columna como índice
+    matriz = matriz.iloc[:len(ciudades), :len(ciudades)]    #selecciona solo las filas y columnas correspondientes a las ciudades definidas en la lista 'ciudades'.        
 
     if list(matriz.columns) != ciudades or list(matriz.index) != ciudades:
         raise ValueError("Los nombres del Excel no coinciden con la lista 'ciudades'.")
 
     # La diagonal viene vacía en la tabla original: distancia de una ciudad a sí misma = 0
     valores = matriz.to_numpy(dtype=float, copy=True)
-    np.fill_diagonal(valores, 0)
-    matriz = pd.DataFrame(valores, index=ciudades, columns=ciudades)
+    np.fill_diagonal(valores, 0)                                     #esta linea se asegura de que la diagonal de la matriz sea cero, ya que la distancia de una ciudad a sí misma es cero.
+    matriz = pd.DataFrame(valores, index=ciudades, columns=ciudades) #esta linea hace que la matriz sea un DataFrame de pandas con los nombres de las ciudades como índices y columnas.
 
     problemas = validar_matriz(matriz)
     if problemas:
         raise ValueError("Matriz inválida:\n" + "\n".join(problemas))
-    
+
     return matriz
 
-def validar_matriz(matriz):
+def validar_matriz(matriz): #solo para verificar que la matriz de distancias sea válida (sin celdas vacías, simétrica, diagonal en cero, etc.)
     problemas = []
 
     # Celdas vacías o no numéricas
-    if matriz.isnull().values.any():
+    if matriz.isnull().values.any():                        #values.any() devuelve True si hay algún valor nulo en la matriz.
         problemas.append("Hay celdas vacías en la matriz.")
-    if not all(matriz.dtypes.apply(lambda t: t.kind in "iuf")):
-        problemas.append("Hay columnas con valores no numéricos.")
+    if not all(matriz.dtypes.apply(lambda t: t.kind in "iuf")): #not all() devuelve True si todos los tipos de datos de las columnas son numéricos (enteros, flotantes o booleanos). 
+        problemas.append("Hay columnas con valores no numéricos.")  #Si alguna columna tiene un tipo de dato no numérico, se agrega un mensaje a la lista de problemas.
 
     # Diagonal en cero
     for ciudad in matriz.index:
-        if matriz.loc[ciudad, ciudad] != 0:
+        if matriz.loc[ciudad, ciudad] != 0:                    #.loc es un método de pandas que permite acceder a una celda específica de un DataFrame utilizando etiquetas de fila y columna. En este caso, se accede a la celda correspondiente a la ciudad en la diagonal de la matriz.
             problemas.append(f"Diagonal distinta de 0 en {ciudad}: {matriz.loc[ciudad, ciudad]}")
 
     # Simetría
-    for i, a in enumerate(matriz.index):
+    for i, a in enumerate(matriz.index): #este for recorre cada ciudad en la matriz y compara la distancia de AB con BA para todas las ciudades B que vienen después de A en la lista. Si encuentra alguna asimetría, agrega un mensaje a la lista de problemas.
         for b in matriz.index[i + 1:]:
             if matriz.loc[a, b] != matriz.loc[b, a]:
                 problemas.append(
@@ -124,21 +129,19 @@ def validar_matriz(matriz):
 def mostrar_ciudades():
     limpiar_pantalla()
 
-    print("========================================")
-    print("       CAPITALES DE ARGENTINA")
-    print("========================================")
+    print(f"{CELESTE}╔{'═' * 38}╗")
+    print(f"║{'CAPITALES DE ARGENTINA'.center(38)}║")
+    print(f"╚{'═' * 38}╝{RESET}")
 
-    matriz = cargar_distancias()
+    matriz = cargar_distancias() #realiza la carga de la matriz de distancias desde el archivo Excel y la almacena en la variable 'matriz'.
 
 
     print("\nCiudades encontradas en el archivo:\n")
 
-    for i, ciudad in enumerate(matriz.columns):
-        print(f"{i + 1}) {ciudad}")
+    for i, ciudad in enumerate(matriz.columns): 
+        print(f"{i + 1}) {ciudad}") #f significa que se está utilizando una f-string para formatear la cadena de texto. La f-string permite incluir expresiones dentro de llaves {} que se evaluarán y se reemplazarán por sus valores correspondientes. En este caso, {i + 1} representa el número de la ciudad (índice + 1) y {ciudad} representa el nombre de la ciudad.
 
     pausa()
-
-   
 
 def calcular_vecino_mas_cercano(ciudad_inicial, matriz):
     ciudades = list(matriz.columns)
@@ -172,18 +175,31 @@ def calcular_vecino_mas_cercano(ciudad_inicial, matriz):
 
     return visitadas, distancia_total
 
+_PAIS = None
+_PROVINCIAS = None
 
 def cargar_pais():
-    mundo = gpd.read_file(ARCHIVO_MAPA)
-    return mundo[mundo["ADMIN"] == "Argentina"]
+    global _PAIS
+    if _PAIS is None:
+        mundo = gpd.read_file(ARCHIVO_MAPA)
+        _PAIS = mundo[mundo["ADMIN"] == "Argentina"]
+    return _PAIS
 
+def cargar_provincias():
+    global _PROVINCIAS
+    if _PROVINCIAS is None:
+        prov = gpd.read_file(ARCHIVO_PROVINCIAS)
+        _PROVINCIAS = prov[prov["admin"] == "Argentina"]
+    return _PROVINCIAS
 
 def dibujar_mapa(recorrido, titulo):
-    # recorrido: lista de nombres de ciudades; la última es igual a la primera
     fig, ax = plt.subplots(figsize=(7, 10))
 
-    # Contorno real del país (punto de vista argentino)
-    cargar_pais().plot(ax=ax, color="#eef2e6", edgecolor="gray", linewidth=0.8, zorder=0)
+    # Provincias: relleno verde clarito y bordes grises finos
+    cargar_provincias().plot(ax=ax, color="#d9f0d3", edgecolor="gray", linewidth=0.5, zorder=0)
+    # País: solo contorno negro, encima de las provincias
+    cargar_pais().plot(ax=ax, color="none", edgecolor="black", linewidth=1.2, zorder=1)
+
     ax.set_xlim(-74, -52)
     ax.set_ylim(-56, -21)
 
@@ -212,12 +228,12 @@ def dibujar_mapa(recorrido, titulo):
     ax.grid(True, alpha=0.3)
     plt.show()
 
-def vecino_mas_cercano():
+def vecino_mas_cercano(): #esta función implementa el algoritmo del vecino más cercano para encontrar un recorrido aproximado del problema del viajante. Solicita al usuario que seleccione una ciudad de partida y luego calcula el recorrido y la distancia total utilizando la función calcular_vecino_mas_cercano. Finalmente, muestra el recorrido encontrado, la distancia total y dibuja un mapa con el recorrido.
     limpiar_pantalla()
 
-    print("========================================")
-    print("       VECINO MÁS CERCANO")
-    print("========================================")
+    print(f"{CELESTE}╔{'═' * 38}╗")
+    print(f"║{'VECINO MÁS CERCANO'.center(38)}║")
+    print(f"╚{'═' * 38}╝{RESET}")
 
     matriz = cargar_distancias()
     ciudades = list(matriz.columns)
@@ -351,9 +367,9 @@ def mutar(cromosoma):
 def mejor_recorrido_heuristico():
     limpiar_pantalla()
 
-    print("========================================")
-    print("     MEJOR RECORRIDO - HEURÍSTICA")
-    print("========================================")
+    print(f"{CELESTE}╔{'═' * 38}╗")
+    print(f"║{'MEJOR RECORRIDO - HEURÍSTICA'.center(38)}║")
+    print(f"╚{'═' * 38}╝{RESET}")
 
     matriz = cargar_distancias()
     ciudades = list(matriz.columns)
@@ -388,9 +404,9 @@ def mejor_recorrido_heuristico():
 def algoritmo_genetico():
     limpiar_pantalla()
 
-    print("========================================")
-    print("         ALGORITMO GENÉTICO")
-    print("========================================")
+    print(f"{CELESTE}╔{'═' * 38}╗")
+    print(f"║{'ALGORITMO GENÉTICO'.center(38)}║")
+    print(f"╚{'═' * 38}╝{RESET}")
 
     matriz = cargar_distancias()
     distancias = matriz.to_numpy()
@@ -429,9 +445,9 @@ def algoritmo_genetico():
 def comparar():
     limpiar_pantalla()
 
-    print("========================================")
-    print("        COMPARACIÓN DE MÉTODOS")
-    print("========================================")
+    print(f"{CELESTE}╔{'═' * 38}╗")
+    print(f"║{'COMPARACIÓN DE MÉTODOS'.center(38)}║")
+    print(f"╚{'═' * 38}╝{RESET}")
 
     matriz = cargar_distancias()
     distancias = matriz.to_numpy()
@@ -477,15 +493,18 @@ def comparar():
 
 
 def menu():
+    RESET = "\033[0m"
+    NEGRITA = "\033[1m"
+    CELESTE = "\033[96m"
 
     while True:
 
         limpiar_pantalla()
 
-        print("=" * 45)
-        print("      TRABAJO PRÁCTICO")
-        print("      PROBLEMA DEL VIAJANTE")
-        print("=" * 45)
+        print(f"{CELESTE}╔{'═' * 43}╗")
+        print(f"║{'TRABAJO PRÁCTICO'.center(41)}  ║")
+        print(f"║{'PROBLEMA DEL VIAJANTE'.center(43)}║")
+        print(f"╚{'═' * 43}╝{RESET}")
 
         print("\n1) Mostrar capitales")
         print("2) Vecino más cercano")
